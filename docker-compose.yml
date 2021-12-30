@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  back:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: python manage.py runserver 0.0.0.0:8000
+    container_name: web_api
+    volumes:
+      - ./:/app/
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - database
+
+  database:
+    image: postgres:13.0-alpine
+    container_name: postgres_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=db
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: docker/worker.dockerfile
+    container_name: celery_beat
+    command: /start-beat.sh
+    volumes:
+      - ./:/app/
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - database
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/worker.dockerfile
+    container_name: celery_worker
+    command: /start-worker.sh
+    volumes:
+      - ./:/app/
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - database
+
+  redis:
+    image: redis:5-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
